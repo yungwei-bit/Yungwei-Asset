@@ -1200,13 +1200,22 @@ function renderStockOverview(){
 function renderStockPriceUpdate(){
   const stockRows = Object.entries(state.stocks).map(([code, name]) => {
     const codeStr = fmtStockCode(code);
-    const price = state.prices[codeStr] != null ? Number(state.prices[codeStr]) : 0;
+    const price = state.prices[codeStr] != null
+      ? Number(state.prices[codeStr])
+      : 0;
+
     return `
     <tr>
       <td class="txt">${codeStr}</td>
       <td class="txt">${name}</td>
       <td>
-        <input type="number" class="price-input" data-stock-price-code="${codeStr}" value="${fmtNum(price, 3)}" step="0.001">
+        <input
+          type="number"
+          class="price-input"
+          data-stock-price-code="${codeStr}"
+          value="${price}"
+          step="0.001"
+        >
       </td>
     </tr>`;
   }).join('');
@@ -1216,18 +1225,37 @@ function renderStockPriceUpdate(){
     <p class="section-desc">新增關注的股票清單，並可更新最新現價，更新後將自動套用到持股總表與個人資產。</p>
 
     <div class="form-card">
-      <p style="font-weight:bold; margin-top:0; margin-bottom:10px;">新增股票至清單</p>
+      <p style="font-weight:bold; margin-top:0; margin-bottom:10px;">
+        新增股票至清單
+      </p>
+
       <div class="new-holder-row" style="margin-bottom:0;">
-        <input type="text" id="newStockCodeInput" placeholder="股票代號" style="width: 140px;">
-        <input type="text" id="newStockNameInput" placeholder="股票名稱" style="width: 140px;">
+        <input type="text"
+               id="newStockCodeInput"
+               placeholder="股票代號"
+               style="width:140px;">
+
+        <input type="text"
+               id="newStockNameInput"
+               placeholder="股票名稱"
+               style="width:140px;">
+
         <button class="btn" id="addStockBtn">新增股票</button>
       </div>
     </div>
 
     <div class="table-wrap table-center">
       <table>
-        <thead><tr><th>股票代號</th><th>股票名稱</th><th>目前現價 (NT$)</th></tr></thead>
-        <tbody>${stockRows || '<tr><td colspan="3"><div class="empty-state">尚無股票資料，請先在上方新增</div></td></tr>'}</tbody>
+        <thead>
+          <tr>
+            <th>股票代號</th>
+            <th>股票名稱</th>
+            <th>目前現價 (NT$)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${stockRows || '<tr><td colspan="3"><div class="empty-state">尚無股票資料，請先在上方新增</div></td></tr>'}
+        </tbody>
       </table>
     </div>
   `;
