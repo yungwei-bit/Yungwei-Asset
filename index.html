@@ -620,7 +620,7 @@ document.getElementById('authForm').addEventListener('submit', function(e) {
 });
 
 /* ================= Google Sheets API Setup ================= */
-const API_URL = "https://script.google.com/macros/s/AKfycbzT8rvsYlbJtT2FakIZxGgphf5gDgM9rqietzRAV9DueZN7b5hWt-BhVoXzWf67c68Yyg/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbzqnN5VZdxu9sxzUTzmQOOUEIco0icvpwC-7iFrdc1HW69VsdJhWWv6GOPo4VOGhKEH/exec"; 
 
 let toastTimer=null;
 function showToast(msg){
@@ -640,7 +640,7 @@ let state={
   cashflow:[],     
   gifts:[],        
   prices:{},       
-  stocks:{'0050':'元大台灣50', '2330':'台積電'},
+  stocks:{'0050':'元大台灣50', '2330':'台積電','2454':'聯發科','2308':'台達電'},
   
   // 黃金資料
   goldPrices: {'ingot': 0, 'ornament': 0},
@@ -650,8 +650,8 @@ let state={
   // 資產配置設定
   allocationConfig: {
     cashAmount: 0, cashTargetPct: 20,
-    goldAmount: 0, goldTargetPct: 10,
-    stockAmount: 0, stockTargetPct: 70
+    goldAmount: 0, goldTargetPct: 20,
+    stockAmount: 0, stockTargetPct: 60
   },
 
   activeTab:'a00',
@@ -684,9 +684,8 @@ const GOLD_SUB_TABS=[
 
 /* ================= API 串接與儲存 ================= */
 function fmtStockCode(code){
-  if(!code) return '';
-  const str = String(code).trim();
-  return /^\d+$/.test(str) ? str.padStart(4, '0') : str;
+  if(code === null || code === undefined) return '';
+  return String(code).replace(/^'+/, '').trim(); // 原封不動回傳
 }
 
 async function fetchFromGoogleSheet(){
@@ -696,9 +695,13 @@ async function fetchFromGoogleSheet(){
     const data = await res.json();
     
     if(data){
+      // 修正重點：使用 Set 強制進行自動去重與去空白，防止持有人重複顯示
       if(data.holders && data.holders.length > 0) {
-        state.holders = data.holders.map(h => typeof h === 'object' ? String(h.name || h[0]) : String(h));
+        const rawHolders = data.holders.map(h => typeof h === 'object' ? String(h.name || h[0]) : String(h));
+        const cleanHolders = rawHolders.map(h => h.replace(/^'+/, '').trim()).filter(h => h !== '');
+        state.holders = Array.from(new Set(cleanHolders));
       }
+      
       state.transactions = (data.transactions || []).map(t => ({...t, code: fmtStockCode(t.code)}));
       state.cashflow = data.cashflow || [];
       state.gifts = (data.gifts || []).map(g => ({...g, code: fmtStockCode(g.code)}));
@@ -710,7 +713,10 @@ async function fetchFromGoogleSheet(){
       
       if(data.stocks && Object.keys(data.stocks).length > 0) {
         state.stocks = {};
-        Object.keys(data.stocks).forEach(k => { state.stocks[fmtStockCode(k)] = data.stocks[k]; });
+        Object.keys(data.stocks).forEach(k => { 
+          const cleanKey = fmtStockCode(k);
+          state.stocks[cleanKey] = String(data.stocks[k]); 
+        });
       }
       
       state.goldPrices = data.goldPrices || {'ingot': 0, 'ornament': 0};
@@ -737,7 +743,7 @@ async function saveToGoogleSheet(){
         cashflow: state.cashflow,
         gifts: state.gifts,
         prices: state.prices,
-        stocks: state.stocks,
+        stocks: state.stocks, // 恢復傳送物件結構
         goldPrices: state.goldPrices,
         goldTransactions: state.goldTransactions,
         goldGifts: state.goldGifts,
@@ -1207,13 +1213,13 @@ function renderStockPriceUpdate(){
 
   return `
     <p class="section-title">06｜股價更新 & 股票清單管理</p>
-    <p class="section-desc">新增關注的股票清單，並可更新最新現價(更新後會自動套用到持股總表與個人資產)。</p>
+    <p class="section-desc">新增關注的股票清單，並可更新最新現價，更新後將自動套用到持股總表與個人資產。</p>
 
     <div class="form-card">
       <p style="font-weight:bold; margin-top:0; margin-bottom:10px;">新增股票至清單</p>
       <div class="new-holder-row" style="margin-bottom:0;">
-        <input type="text" id="newStockCodeInput" placeholder="股票代號 (如 0050)" style="width: 140px;">
-        <input type="text" id="newStockNameInput" placeholder="股票名稱 (如 元大台灣50)" style="width: 140px;">
+        <input type="text" id="newStockCodeInput" placeholder="股票代號" style="width: 140px;">
+        <input type="text" id="newStockNameInput" placeholder="股票名稱" style="width: 140px;">
         <button class="btn" id="addStockBtn">新增股票</button>
       </div>
     </div>
@@ -2023,7 +2029,9 @@ function bindActiveEvents(){
     addStockBtn.addEventListener('click', async ()=>{
       const codeInput = document.getElementById('newStockCodeInput');
       const nameInput = document.getElementById('newStockNameInput');
-      const code = fmtStockCode(codeInput.value);
+      
+      // 直接取用原始輸入字串，去除前後空白與單引號
+      const code = String(codeInput.value || '').replace(/^'+/, '').trim();
       const name = nameInput.value.trim();
 
       if(!code || !name){
@@ -2035,6 +2043,9 @@ function bindActiveEvents(){
       renderActive();
       await saveToGoogleSheet();
       showToast(`已新增股票：${code} ${name}`);
+      
+      codeInput.value = '';
+      nameInput.value = '';
     });
   }
 
